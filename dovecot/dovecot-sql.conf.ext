@@ -1,0 +1,20 @@
+# Dovecot SQL configuration for MySQL
+
+driver = mysql
+connect = host=mysql dbname=mailserver user=mailuser password=mailpassword
+
+# Default password scheme
+default_pass_scheme = SHA512-CRYPT
+
+# User query - lookup user
+user_query = SELECT CONCAT('/var/mail/vmail/', '%d', '/', '%n') as home, \
+             1001 as uid, 1001 as gid, \
+             CONCAT('*:storage=', 0) as quota \
+             FROM virtual_users WHERE email='%u@%d'
+
+# Password query - password verification
+password_query = SELECT email as user, password FROM virtual_users \
+                 WHERE email='%u@%d'
+
+# Iterate query (optional)
+iterate_query = SELECT email FROM virtual_users
