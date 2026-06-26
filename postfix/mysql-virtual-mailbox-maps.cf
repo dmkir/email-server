@@ -1,0 +1,5 @@
+user = mailuser
+password = mailpassword
+hosts = mysql
+dbname = mailserver
+query = SELECT CONCAT(SUBSTR(email, 1, LOCATE('@', email) - 1), '/') FROM virtual_users WHERE email='%s'
