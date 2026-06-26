@@ -1,0 +1,81 @@
+# Postfix main configuration file
+
+# Hostname and domain
+myhostname = mail.example.com
+mydomain = example.com
+myorigin = $mydomain
+
+# Network settings
+inet_interfaces = all
+inet_protocols = ipv4
+
+# Receiving mail
+mydestination = localhost
+local_recipient_maps =
+
+# Virtual mailbox configuration
+virtual_mailbox_domains = mysql:/etc/postfix/mysql-virtual-mailbox-domains.cf
+virtual_mailbox_maps = mysql:/etc/postfix/mysql-virtual-mailbox-maps.cf
+virtual_alias_maps = mysql:/etc/postfix/mysql-virtual-alias-maps.cf
+
+# Virtual mailbox settings
+virtual_mailbox_base = /var/mail/vmail
+virtual_mailbox_limit = 0
+virtual_minimum_uid = 1001
+virtual_uid_maps = static:1001
+virtual_gid_maps = static:1001
+
+# TLS Configuration for incoming mail (port 25)
+smtpd_tls_cert_file = /etc/postfix/certs/mail.crt
+smtpd_tls_key_file = /etc/postfix/certs/mail.key
+smtpd_tls_security_level = may
+smtpd_tls_loglevel = 1
+
+# TLS Configuration for outgoing mail
+smtp_tls_security_level = may
+
+# SASL Authentication
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = inet:dovecot:12345
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_local_domain = $myhostname
+
+# SMTP restrictions
+smtpd_recipient_restrictions =
+    permit_mynetworks,
+    permit_sasl_authenticated,
+    reject_unauth_destination,
+    reject_unknown_recipient_domain,
+    permit
+
+smtpd_client_restrictions =
+    permit_mynetworks,
+    permit_sasl_authenticated,
+    reject_unknown_client_hostname,
+    permit
+
+# Recipient restrictions for domain verification
+smtpd_relay_restrictions =
+    permit_mynetworks,
+    permit_sasl_authenticated,
+    defer_unauth_destination
+
+# Message size limit (50MB)
+message_size_limit = 52428800
+
+# Mailbox size limit
+mailbox_size_limit = 0
+
+# Address rewriting
+append_dot_mydomain = no
+biff = no
+
+# Aliases
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+
+# Logging
+maillog_file = /var/log/mail.log
+
+# Other settings
+recipient_bcc_maps = mysql:/etc/postfix/mysql-virtual-alias-maps.cf
