@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: email-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mailserver}
+      MYSQL_USER: ${MYSQL_USER:-mailuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-mailpassword}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mail_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  postfix:
+    image: ubuntu:22.04
+    container_name: email-postfix
+    restart: unless-stopped
+    build:
+      context: ./postfix
+      dockerfile: Dockerfile
+    environment:
+      DOMAIN: ${MAIL_DOMAIN:-example.com}
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER:-mailuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-mailpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mailserver}
+    ports:
+      - "25:25"
+      - "465:465"
+    volumes:
+      - ./postfix/main.cf:/etc/postfix/main.cf
+      - ./postfix/master.cf:/etc/postfix/master.cf
+      - ./postfix/mysql-virtual-mailbox-domains.cf:/etc/postfix/mysql-virtual-mailbox-domains.cf
+      - ./postfix/mysql-virtual-mailbox-maps.cf:/etc/postfix/mysql-virtual-mailbox-maps.cf
+      - ./postfix/mysql-virtual-alias-maps.cf:/etc/postfix/mysql-virtual-alias-maps.cf
+      - postfix_data:/var/spool/postfix
+      - mail_data:/var/mail/vmail
+      - ./certs:/etc/postfix/certs:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - mail_network
+    command: /usr/sbin/postfix start-fg
+
+  dovecot:
+    image: ubuntu:22.04
+    container_name: email-dovecot
+    restart: unless-stopped
+    build:
+      context: ./dovecot
+      dockerfile: Dockerfile
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER:-mailuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-mailpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mailserver}
+    ports:
+      - "993:993"
+    volumes:
+      - ./dovecot/dovecot.conf:/etc/dovecot/dovecot.conf
+      - ./dovecot/dovecot-sql.conf.ext:/etc/dovecot/dovecot-sql.conf.ext
+      - mail_data:/var/mail/vmail
+      - ./certs:/etc/dovecot/certs:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - mail_network
+    command: /usr/sbin/dovecot -F
+
+volumes:
+  mysql_data:
+  postfix_data:
+  mail_data:
+
+networks:
+  mail_network:
+    driver: bridge
